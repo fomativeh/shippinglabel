@@ -258,30 +258,6 @@ bot.on("document", async (ctx) => {
   await handleCsvUpload(ctx, appState);
 });
 
-const port = process.env.PORT || 5000;
-app.listen(port, () => {
-  console.log(`App is listening on port ${port}`);
-});
-
-//Connect to DB
-const URI = process.env.URI;
-mongoose
-  .connect(URI)
-  .then(() => {
-    console.log("Connected to DB");
-  })
-  .catch((err) => console.log(err));
-
-// // Log a message when the bot is connected
-bot.telegram
-  .getMe()
-  .then((botInfo) => {
-    console.log(`Bot ${botInfo.username} is connected and running.`);
-    bot.launch();
-  })
-  .catch((err) => {
-    console.error("Error connecting bot:", err);
-  });
 
 app.post("/webhook-endpoint", async (req, res) => {
   const { address, hash, value, token } = req.body;
@@ -342,8 +318,27 @@ Your new account balance is *${parseFloat(user.balance.toString())} USD*
   }
 });
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`App is listening on port ${port}`);
 });
+
+//Connect to DB
+const URI = process.env.URI;
+mongoose
+  .connect(URI)
+  .then(() => {
+    console.log("Connected to DB");
+  })
+  .catch((err) => console.log(err));
+
+// // Log a message when the bot is connected
+bot.telegram
+  .getMe()
+  .then((botInfo) => {
+    console.log(`Bot ${botInfo.username} is connected and running.`);
+    bot.launch();
+  })
+  .catch((err) => {
+    console.error("Error connecting bot:", err);
+  });
