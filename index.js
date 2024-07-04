@@ -60,13 +60,13 @@ app.use(express.json());
 
 //Start command
 bot.start(async (ctx) => {
-  resetAppState(appState);
-  const user = await User.findOne({ id: ctx.from.id });
-  const { balance, btcAddress, ltcAddress } = user;
-  appState = { ...appState, btcAddress, ltcAddress, balance };
   queue.enqueue(async () => {
     try {
       await initUserAccount(ctx);
+      resetAppState(appState);
+      const user = await User.findOne({ id: ctx.from.id });
+      const { balance, btcAddress, ltcAddress } = user;
+      appState = { ...appState, btcAddress, ltcAddress, balance };
       await showMenu(ctx, appState.balance);
     } catch (error) {
       handleError(ctx, error);
