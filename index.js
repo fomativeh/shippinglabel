@@ -308,10 +308,6 @@ Your new account balance is *${parseFloat(user.balance.toString())} USD*
       await bot.telegram.sendMessage(user.id, message, {
         parse_mode: "Markdown",
       });
-
-      res.status(200).send("Webhook received successfully");
-    } else {
-      res.status(404).send("User not found");
     }
   } catch (error) {
     // bot.telegram.sendMessage(user.id, "An error occured.")
