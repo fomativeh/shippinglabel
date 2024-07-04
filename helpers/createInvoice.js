@@ -4,11 +4,13 @@ const fs = require("fs");
 const handleError = require("./handleError");
 const checkForPayment = require("./checkForPayment");
 const User = require("../models/userSchema");
+const setWebhook = require("../setWebhook");
 
 module.exports = createInvoice = async (appState, ctx) => {
   try {
     appState.topupIsInProgress = true;
     const user = await User.findOne({ id: ctx.from.id });
+    console.log(appState);
     user.topupIsInProgress = true;
     await user.save();
 
@@ -36,9 +38,7 @@ module.exports = createInvoice = async (appState, ctx) => {
 _(Tap to copy)_
 
 
-Upon payment confirmation, your account will be funded and you will be notified.
-
-This invoice will expire in *30 minutes*.`;
+Upon payment confirmation, your account will be funded and you will be notified.`;
 
     // Send Barcode image
     await ctx.replyWithPhoto(
@@ -55,8 +55,9 @@ This invoice will expire in *30 minutes*.`;
 
     // Clean up: Delete the QR code file
     fs.unlinkSync(qrFilePath);
+    await setWebhook(wallletAddress, appState.tokenToTopup);
 
-    await checkForPayment(wallletAddress, appState.tokenToTopup, ctx);
+    // await checkForPayment(wallletAddress, appState.tokenToTopup, ctx);
   } catch (error) {
     handleError(ctx, error);
   }

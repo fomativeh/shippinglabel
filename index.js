@@ -25,6 +25,8 @@ const User = require("./models/userSchema");
 const createInvoice = require("./helpers/createInvoice");
 const checkForPayment = require("./helpers/checkForPayment");
 
+const Transaction = require("./models/transactionSchema");
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Create a queue instance
@@ -57,6 +59,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // Parse JSON bodies
 app.use(express.json());
+app.use(bodyParser.json());
 
 //Start command
 bot.start(async (ctx) => {
@@ -279,3 +282,68 @@ bot.telegram
   .catch((err) => {
     console.error("Error connecting bot:", err);
   });
+
+app.post("/webhook-endpoint", async (req, res) => {
+  const { address, hash, value, token } = req.body;
+  const amount = value / Math.pow(10, 8); // Convert from satoshis
+
+  try {
+    // Find the user based on wallet address
+    const user = await User.findOne({
+      $or: [
+        { "btcAddress.publicKey": address },
+        { "ltcAddress.publicKey": address },
+      ],
+    });
+
+    if (user) {
+      // Create a new transaction record
+      const newTransaction = new Transaction({
+        amount,
+        hash,
+        token,
+        userId: user._id,
+      });
+      await newTransaction.save();
+
+      // Get current token price in USD
+      const response = await axios.get(
+        `https://api.binance.com/api/v3/avgPrice?symbol=${token.toUpperCase()}USDT`,
+        {
+          timeout: 15000, // Adjust timeout value (in milliseconds) as needed
+        }
+      );
+      const priceInUSD = parseFloat(response.data.price);
+      const dollarEquivalent = parseFloat((amount * priceInUSD).toFixed(2));
+
+      // Update user's balance
+      user.balance += dollarEquivalent;
+      await user.save();
+
+      // Notify user of payment confirmation
+      const message = `Payment confirmed!💰✅
+        
+A deposit of *${amount} ${token.toUpperCase()}* (${dollarEquivalent} USD) to your account has been confirmed.
+
+Your new account balance is *${parseFloat(user.balance.toString())} USD*
+`;
+      // Assume ctx.reply is a function to send a message to the user
+      await bot.telegram.sendMessage(user.id, message, {
+        parse_mode: "Markdown",
+      });
+
+      res.status(200).send("Webhook received successfully");
+    } else {
+      res.status(404).send("User not found");
+    }
+  } catch (error) {
+    handleError(ctx, error);
+    res.status(500).send("Error processing transaction");
+  }
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
