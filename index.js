@@ -146,13 +146,13 @@ bot.hears("🔙 Main Menu", async (ctx) => {
 });
 
 bot.hears("❌ Cancel", async (ctx) => {
-  if (appState.topupIsInProgress) {
-    ctx.reply("Cancelling. Please wait...");
-    const user = await User.findOne({ id: ctx.from.id });
-    user.topupIsInProgress = false; //This state exists in db so that it can be accessed by the checkForPayment fn to stop the loop
-    await user.save();
-    await ctx.reply("Invoice cancelled ❌");
-  }
+  // if (appState.topupIsInProgress) {
+  //   ctx.reply("Cancelling. Please wait...");
+  //   const user = await User.findOne({ id: ctx.from.id });
+  //   user.topupIsInProgress = false; //This state exists in db so that it can be accessed by the checkForPayment fn to stop the loop
+  //   await user.save();
+  //   await ctx.reply("Invoice cancelled ❌");
+  // }
 
   resetAppState(appState);
   queue.enqueue(async () => {

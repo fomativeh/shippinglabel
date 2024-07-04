@@ -47,7 +47,7 @@ Upon payment confirmation, your account will be funded and you will be notified.
         caption,
         parse_mode: "Markdown",
         reply_markup: {
-          keyboard: [[{ text: "❌ Cancel" }]],
+          keyboard: [[{ text: "🔙 Main Menu" }]],
           resize_keyboard: true,
         },
       }
