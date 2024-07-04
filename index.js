@@ -260,6 +260,7 @@ bot.on("document", async (ctx) => {
 
 
 app.post("/webhook-endpoint", async (req, res) => {
+  res.send("Works")
   const { address, hash, value, token } = req.body;
   const amount = value / Math.pow(10, 8); // Convert from satoshis
 
