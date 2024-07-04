@@ -13,7 +13,6 @@ const Queue = require("queue-promise");
 const handleError = require("./helpers/handleError");
 const showMenu = require("./helpers/showMenu");
 const createPDF = require("./helpers/createPDF");
-const ms = require("./pdfString");
 const courierData = require("./utils/courierData");
 const generateKeyboard = require("./helpers/generateKeyboard");
 const generateTimeframeMessage = require("./helpers/generateTimeframeMessage");
