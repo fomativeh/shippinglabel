@@ -3,10 +3,9 @@ const Transaction = require("../models/transactionSchema");
 const User = require("../models/userSchema");
 const handleError = require("./handleError");
 
-const creditAndNotifyUser = async (transaction, token, ctx) => {
+const creditAndNotifyUser = async (transaction, token, ctx, user) => {
   const { amount, hash } = transaction;
   try {
-    const user = await User.findOne({ id: ctx.from.id });
     const newTransaction = new Transaction({
       amount,
       hash,
@@ -44,7 +43,7 @@ Your new account balance is *${parseFloat(newBalance.toString())} USD*
   }
 };
 
-const checkForNewPayments = async (url, token, ctx) => {
+const checkForNewPayments = async (url, token, ctx, walletAddress) => {
   let invoiceIsExpired = false;
   const timeoutDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
 
@@ -98,7 +97,12 @@ const checkForNewPayments = async (url, token, ctx) => {
 
     for (let i = 0; i < confirmedTransactions.length; i++) {
       if (!oldTransactionHashes.includes(confirmedTransactions[i])) {
-        const user = await User.findOne({ id: ctx.from.id }); //I didn't fetch the user info above because we need the latest state of user info for the "invoiceIsExpired" if statement
+        //I didn't fetch the user info in a global scope because we need the latest state of user info for the "invoiceIsExpired" if statement
+        const user = await User.findOne({
+          $or: [
+              { 'btcAddress.publicKey': walletAddress  },
+              { 'ltcAddress.publicKey': walletAddress  },
+          ]})
         //Update user topup request status
         user.topupIsInProgress = false;
         await user.save();
@@ -106,14 +110,19 @@ const checkForNewPayments = async (url, token, ctx) => {
         // console.log(confirmedTransactions[i]);
         // console.log("confirmed. stopped checking");
         //credit user
-        await creditAndNotifyUser(confirmedTransactions[i], token, ctx);
+        await creditAndNotifyUser(confirmedTransactions[i], token, ctx, walletAddress, user);
         break;
       }
 
       // console.log("Still checking");
     }
 
-    const user = await User.findOne({ id: ctx.from.id }); //Fetching the user here again to obtain the latest state of the user
+    const user = await User.findOne({
+      $or: [
+          { 'btcAddress.publicKey': walletAddress  },
+          { 'ltcAddress.publicKey': walletAddress  },
+      ]
+  });//Fetching the user here again to obtain the latest state of the user
     if (user.topupIsInProgress) {
       //Will only get here when no new payment is detected
       if (!invoiceIsExpired) {
@@ -135,7 +144,7 @@ module.exports = checkForPayment = async (walletAddress, tokenToCheck, ctx) => {
   //   const url = `https://api.blockcypher.com/v1/btc/main/addrs/${address}/full?token=${apiKey}`;
 
   try {
-    await checkForNewPayments(url, token, ctx);
+    await checkForNewPayments(url, token, ctx, walletAddress);
   } catch (error) {
     handleError(ctx, error);
   }
