@@ -314,7 +314,8 @@ Your new account balance is *${parseFloat(user.balance.toString())} USD*
       res.status(404).send("User not found");
     }
   } catch (error) {
-    handleError(ctx, error);
+    // bot.telegram.sendMessage(user.id, "An error occured.")
+    console.log(error);
     res.status(500).send("Error processing transaction");
   }
 });
