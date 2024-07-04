@@ -23,8 +23,7 @@ const creditAndNotifyUser = async (transaction, token, ctx, user) => {
       }
     );
     const priceInUSD = parseFloat(response.data.price);
-    const dollarEquivalent = (amount * priceInUSD).toFixed(2);
-
+    const dollarEquivalent = parseFloat((amount * priceInUSD).toFixed(2));
     const newBalance = user.balance + dollarEquivalent;
     user.balance = newBalance;
     await user.save();
@@ -59,7 +58,7 @@ const checkForNewPayments = async (url, token, ctx, walletAddress) => {
     }
 
     if (!addressData?.txrefs) {
-      return; // No transactions yet
+      return await checkForNewPayments(url, token, ctx, walletAddress); // No transactions yet, call the function again
     }
 
     const txs = addressData.txrefs;
@@ -75,12 +74,13 @@ const checkForNewPayments = async (url, token, ctx, walletAddress) => {
         (e) =>
           new Date(e.confirmed >= yesterday && new Date(e.confirmed) <= today)
       );
+    } else {
+      return await checkForNewPayments(url, token, ctx, walletAddress); // No payment recieved yet, call the function again
     }
 
     let confirmedTransactions = [];
 
     transactionsToCheck.forEach((tx) => {
-      //   console.log(tx.value);
       let amount = tx.value / Math.pow(10, 8);
       confirmedTransactions.push({
         amount,
@@ -89,45 +89,66 @@ const checkForNewPayments = async (url, token, ctx, walletAddress) => {
       });
     });
 
-    const oldPayments = await Transaction.find({ userId: ctx.from.id, token });
+    const oldPaymentsByThisUser = await Transaction.find({
+      userId: ctx.from.id,
+      token,
+    });
     let oldTransactionHashes = [];
-    oldPayments.forEach((eachOldPayment) => {
+    oldPaymentsByThisUser.forEach((eachOldPayment) => {
       oldTransactionHashes.push(eachOldPayment.hash);
     });
 
-    for (let i = 0; i < confirmedTransactions.length; i++) {
-      if (!oldTransactionHashes.includes(confirmedTransactions[i])) {
-        //I didn't fetch the user info in a global scope because we need the latest state of user info for the "invoiceIsExpired" if statement
-        const user = await User.findOne({
-          $or: [
-              { 'btcAddress.publicKey': walletAddress  },
-              { 'ltcAddress.publicKey': walletAddress  },
-          ]})
-        //Update user topup request status
-        user.topupIsInProgress = false;
-        await user.save();
-        invoiceIsExpired = true;
-        // console.log(confirmedTransactions[i]);
-        // console.log("confirmed. stopped checking");
-        //credit user
-        await creditAndNotifyUser(confirmedTransactions[i], token, ctx, walletAddress, user);
-        break;
-      }
+      
+    if (oldTransactionHashes.length == 0) { //If this is their first payment 
+      const user = await User.findOne({
+        $or: [
+          { "btcAddress.publicKey": walletAddress },
+          { "ltcAddress.publicKey": walletAddress },
+        ],
+      });
 
-      // console.log("Still checking");
+      user.topupIsInProgress = false;
+      await user.save();
+      invoiceIsExpired = true;
+      await creditAndNotifyUser(confirmedTransactions[0], token, ctx, user);
+    } else { //if this is just another payment
+      for (let i = 0; i < confirmedTransactions.length; i++) {
+        if (!oldTransactionHashes.includes(confirmedTransactions[i])) {
+          //I didn't fetch the user info in a global scope because we need the latest state of user info for the "invoiceIsExpired" if statement
+          const user = await User.findOne({
+            $or: [
+              { "btcAddress.publicKey": walletAddress },
+              { "ltcAddress.publicKey": walletAddress },
+            ],
+          });
+          // console.log(user)
+          //Update user topup request status
+          user.topupIsInProgress = false;
+          await user.save();
+          invoiceIsExpired = true;
+          // console.log(confirmedTransactions[i]);
+          // console.log("confirmed. stopped checking");
+          //credit user
+          await creditAndNotifyUser(confirmedTransactions[i], token, ctx, user);
+          break;
+        }
+
+        // console.log("Still checking");
+      }
     }
 
     const user = await User.findOne({
       $or: [
-          { 'btcAddress.publicKey': walletAddress  },
-          { 'ltcAddress.publicKey': walletAddress  },
-      ]
-  });//Fetching the user here again to obtain the latest state of the user
+        { "btcAddress.publicKey": walletAddress },
+        { "ltcAddress.publicKey": walletAddress },
+      ],
+    }); //Fetching the user here again to obtain the latest state of the user
+
     if (user.topupIsInProgress) {
       //Will only get here when no new payment is detected
       if (!invoiceIsExpired) {
         //Check for payments again
-        await checkForNewPayments(url, token, ctx);
+        await checkForNewPayments(url, token, ctx, walletAddress);
       }
     } else {
       invoiceIsExpired = true; //Invoice gets cancelled when user clicks the "❌ Cancel" button

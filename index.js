@@ -103,7 +103,7 @@ Choose a country 👇`;
 
 bot.hears("🗃 Bulk Labels", async (ctx) => {
   queue.enqueue(async () => {
-  appState.bulkLabel = true
+    appState.bulkLabel = true;
     try {
       let message = `📦 *Blue Print Ship*
 
@@ -269,7 +269,7 @@ mongoose
   })
   .catch((err) => console.log(err));
 
-// Log a message when the bot is connected
+// // Log a message when the bot is connected
 bot.telegram
   .getMe()
   .then((botInfo) => {
@@ -279,4 +279,3 @@ bot.telegram
   .catch((err) => {
     console.error("Error connecting bot:", err);
   });
-
